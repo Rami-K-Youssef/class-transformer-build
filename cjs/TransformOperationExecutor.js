@@ -385,7 +385,7 @@ class TransformOperationExecutor {
                 data: this.options.data,
             });
             if ((0, utils_1.isPromise)(value))
-                promises.push(value);
+                promises.push(value.then(v => (obj[key] = v)));
         });
         return value;
     }

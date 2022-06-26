@@ -403,7 +403,7 @@ var TransformOperationExecutor = /** @class */ (function () {
                 data: _this.options.data,
             });
             if (isPromise(value))
-                promises.push(value);
+                promises.push(value.then(function (v) { return (obj[key] = v); }));
         });
         return value;
     };

@@ -382,7 +382,7 @@ export class TransformOperationExecutor {
                 data: this.options.data,
             });
             if (isPromise(value))
-                promises.push(value);
+                promises.push(value.then(v => (obj[key] = v)));
         });
         return value;
     }
