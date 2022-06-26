@@ -305,7 +305,7 @@ class TransformOperationExecutor {
                         // Get original value
                         finalValue = value[transformKey];
                         // Apply custom transformation
-                        finalValue = this.applyCustomTransformations(finalValue, targetType, transformKey, value, this.transformationType, promises);
+                        finalValue = this.applyCustomTransformations(finalValue, targetType, transformKey, value, this.transformationType);
                         // If nothing change, it means no custom transformation was applied, so use the subValue.
                         finalValue = value[transformKey] === finalValue ? subValue : finalValue;
                         // Apply the default transformation
@@ -318,26 +318,38 @@ class TransformOperationExecutor {
                         }
                         else {
                             finalValue = this._transform(subSource, subValue, type, arrayType, isSubValueMap, level + 1, promises);
-                            finalValue = this.applyCustomTransformations(finalValue, targetType, transformKey, value, this.transformationType, promises);
+                            finalValue = this.applyCustomTransformations(finalValue, targetType, transformKey, value, this.transformationType);
                         }
                     }
                     if (finalValue !== undefined || this.options.exposeUnsetFields) {
                         if (newValue instanceof Map) {
+                            if ((0, utils_1.isPromise)(finalValue)) {
+                                promises.push(finalValue.then(v => newValue.set(newValueKey, v)));
+                            }
                             newValue.set(newValueKey, finalValue);
                         }
                         else {
+                            if ((0, utils_1.isPromise)(finalValue)) {
+                                promises.push(finalValue.then(v => (newValue[newValueKey] = v)));
+                            }
                             newValue[newValueKey] = finalValue;
                         }
                     }
                 }
                 else if (this.transformationType === enums_1.TransformationType.CLASS_TO_CLASS) {
                     let finalValue = subValue;
-                    finalValue = this.applyCustomTransformations(finalValue, targetType, key, value, this.transformationType, promises);
+                    finalValue = this.applyCustomTransformations(finalValue, targetType, key, value, this.transformationType);
                     if (finalValue !== undefined || this.options.exposeUnsetFields) {
                         if (newValue instanceof Map) {
+                            if ((0, utils_1.isPromise)(finalValue)) {
+                                promises.push(finalValue.then(v => newValue.set(newValueKey, v)));
+                            }
                             newValue.set(newValueKey, finalValue);
                         }
                         else {
+                            if ((0, utils_1.isPromise)(finalValue)) {
+                                promises.push(finalValue.then(v => (newValue[newValueKey] = v)));
+                            }
                             newValue[newValueKey] = finalValue;
                         }
                     }
@@ -352,7 +364,7 @@ class TransformOperationExecutor {
             return value;
         }
     }
-    applyCustomTransformations(value, target, key, obj, transformationType, promises) {
+    applyCustomTransformations(value, target, key, obj, transformationType) {
         let metadatas = storage_1.defaultMetadataStorage.findTransformMetadatas(target, key, this.transformationType);
         // apply versioning options
         if (this.options.version !== undefined) {
@@ -384,8 +396,6 @@ class TransformOperationExecutor {
                 options: this.options,
                 data: this.options.data,
             });
-            if ((0, utils_1.isPromise)(value))
-                promises.push(value.then(v => (obj[key] = v)));
         });
         return value;
     }

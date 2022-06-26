@@ -165,18 +165,18 @@ var TransformOperationExecutor = /** @class */ (function () {
                 this.recursionStack.add(value);
             }
             var keys = this.getKeys(targetType, value, isMap);
-            var newValue = source ? source : {};
+            var newValue_2 = source ? source : {};
             if (!source &&
                 (this.transformationType === TransformationType.PLAIN_TO_CLASS ||
                     this.transformationType === TransformationType.CLASS_TO_CLASS)) {
                 if (isMap) {
-                    newValue = new Map();
+                    newValue_2 = new Map();
                 }
                 else if (targetType) {
-                    newValue = new targetType();
+                    newValue_2 = new targetType();
                 }
                 else {
-                    newValue = {};
+                    newValue_2 = {};
                 }
             }
             var _loop_1 = function (key) {
@@ -232,7 +232,7 @@ var TransformOperationExecutor = /** @class */ (function () {
                     var metadata_1 = defaultMetadataStorage.findTypeMetadata(targetType, propertyName);
                     if (metadata_1) {
                         var options = {
-                            newObject: newValue,
+                            newObject: newValue_2,
                             object: value,
                             property: propertyName,
                             data: this_1.options.data,
@@ -301,12 +301,12 @@ var TransformOperationExecutor = /** @class */ (function () {
                 // if (this.transformationType === TransformationType.PLAIN_TO_CLASS && !type && subValue instanceof Object && !(subValue instanceof Date))
                 //     throw new Error(`Cannot determine type for ${(targetType as any).name }.${propertyName}, did you forget to specify a @Type?`);
                 // if newValue is a source object that has method that match newKeyName then skip it
-                if (newValue.constructor.prototype) {
-                    var descriptor = Object.getOwnPropertyDescriptor(newValue.constructor.prototype, newValueKey);
+                if (newValue_2.constructor.prototype) {
+                    var descriptor = Object.getOwnPropertyDescriptor(newValue_2.constructor.prototype, newValueKey);
                     if ((this_1.transformationType === TransformationType.PLAIN_TO_CLASS ||
                         this_1.transformationType === TransformationType.CLASS_TO_CLASS) &&
                         // eslint-disable-next-line @typescript-eslint/unbound-method
-                        ((descriptor && !descriptor.set) || newValue[newValueKey] instanceof Function))
+                        ((descriptor && !descriptor.set) || newValue_2[newValueKey] instanceof Function))
                         return "continue";
                 }
                 if (!this_1.options.enableCircularCheck || !this_1.isCircular(subValue)) {
@@ -316,7 +316,7 @@ var TransformOperationExecutor = /** @class */ (function () {
                         // Get original value
                         finalValue = value[transformKey];
                         // Apply custom transformation
-                        finalValue = this_1.applyCustomTransformations(finalValue, targetType, transformKey, value, this_1.transformationType, promises);
+                        finalValue = this_1.applyCustomTransformations(finalValue, targetType, transformKey, value, this_1.transformationType);
                         // If nothing change, it means no custom transformation was applied, so use the subValue.
                         finalValue = value[transformKey] === finalValue ? subValue : finalValue;
                         // Apply the default transformation
@@ -325,31 +325,43 @@ var TransformOperationExecutor = /** @class */ (function () {
                     else {
                         if (subValue === undefined && this_1.options.exposeDefaultValues) {
                             // Set default value if nothing provided
-                            finalValue = newValue[newValueKey];
+                            finalValue = newValue_2[newValueKey];
                         }
                         else {
                             finalValue = this_1._transform(subSource, subValue, type, arrayType_1, isSubValueMap, level + 1, promises);
-                            finalValue = this_1.applyCustomTransformations(finalValue, targetType, transformKey, value, this_1.transformationType, promises);
+                            finalValue = this_1.applyCustomTransformations(finalValue, targetType, transformKey, value, this_1.transformationType);
                         }
                     }
                     if (finalValue !== undefined || this_1.options.exposeUnsetFields) {
-                        if (newValue instanceof Map) {
-                            newValue.set(newValueKey, finalValue);
+                        if (newValue_2 instanceof Map) {
+                            if (isPromise(finalValue)) {
+                                promises.push(finalValue.then(function (v) { return newValue_2.set(newValueKey, v); }));
+                            }
+                            newValue_2.set(newValueKey, finalValue);
                         }
                         else {
-                            newValue[newValueKey] = finalValue;
+                            if (isPromise(finalValue)) {
+                                promises.push(finalValue.then(function (v) { return (newValue_2[newValueKey] = v); }));
+                            }
+                            newValue_2[newValueKey] = finalValue;
                         }
                     }
                 }
                 else if (this_1.transformationType === TransformationType.CLASS_TO_CLASS) {
                     var finalValue = subValue;
-                    finalValue = this_1.applyCustomTransformations(finalValue, targetType, key, value, this_1.transformationType, promises);
+                    finalValue = this_1.applyCustomTransformations(finalValue, targetType, key, value, this_1.transformationType);
                     if (finalValue !== undefined || this_1.options.exposeUnsetFields) {
-                        if (newValue instanceof Map) {
-                            newValue.set(newValueKey, finalValue);
+                        if (newValue_2 instanceof Map) {
+                            if (isPromise(finalValue)) {
+                                promises.push(finalValue.then(function (v) { return newValue_2.set(newValueKey, v); }));
+                            }
+                            newValue_2.set(newValueKey, finalValue);
                         }
                         else {
-                            newValue[newValueKey] = finalValue;
+                            if (isPromise(finalValue)) {
+                                promises.push(finalValue.then(function (v) { return (newValue_2[newValueKey] = v); }));
+                            }
+                            newValue_2[newValueKey] = finalValue;
                         }
                     }
                 }
@@ -363,13 +375,13 @@ var TransformOperationExecutor = /** @class */ (function () {
             if (this.options.enableCircularCheck) {
                 this.recursionStack.delete(value);
             }
-            return newValue;
+            return newValue_2;
         }
         else {
             return value;
         }
     };
-    TransformOperationExecutor.prototype.applyCustomTransformations = function (value, target, key, obj, transformationType, promises) {
+    TransformOperationExecutor.prototype.applyCustomTransformations = function (value, target, key, obj, transformationType) {
         var _this = this;
         var metadatas = defaultMetadataStorage.findTransformMetadatas(target, key, this.transformationType);
         // apply versioning options
@@ -402,8 +414,6 @@ var TransformOperationExecutor = /** @class */ (function () {
                 options: _this.options,
                 data: _this.options.data,
             });
-            if (isPromise(value))
-                promises.push(value.then(function (v) { return (obj[key] = v); }));
         });
         return value;
     };
