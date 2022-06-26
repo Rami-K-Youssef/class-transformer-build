@@ -6,6 +6,7 @@ export declare class TransformOperationExecutor {
     private recursionStack;
     constructor(transformationType: TransformationType, options: ClassTransformOptions);
     transform(source: Record<string, any> | Record<string, any>[] | any, value: Record<string, any> | Record<string, any>[] | any, targetType: Function | TypeMetadata, arrayType: Function, isMap: boolean, level?: number): any;
+    _transform(source: Record<string, any> | Record<string, any>[] | any, value: Record<string, any> | Record<string, any>[] | any, targetType: Function | TypeMetadata, arrayType: Function, isMap: boolean, level: number, promises: any[]): any;
     private applyCustomTransformations;
     private isCircular;
     private getReflectedType;

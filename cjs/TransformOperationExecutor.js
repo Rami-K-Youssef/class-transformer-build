@@ -27,6 +27,17 @@ class TransformOperationExecutor {
     // Public Methods
     // -------------------------------------------------------------------------
     transform(source, value, targetType, arrayType, isMap, level = 0) {
+        const promises = [];
+        const result = this._transform(source, value, targetType, arrayType, isMap, level, promises);
+        if (promises)
+            return new Promise((resolve, reject) => {
+                Promise.all(promises)
+                    .then(() => resolve(result))
+                    .catch(reject);
+            });
+        return result;
+    }
+    _transform(source, value, targetType, arrayType, isMap, level = 0, promises) {
         if (Array.isArray(value) || value instanceof Set) {
             const newValue = arrayType && this.transformationType === enums_1.TransformationType.PLAIN_TO_CLASS
                 ? instantiateArrayType(arrayType)
@@ -64,7 +75,7 @@ class TransformOperationExecutor {
                     else {
                         realTargetType = targetType;
                     }
-                    const value = this.transform(subSource, subValue, realTargetType, undefined, subValue instanceof Map, level + 1);
+                    const value = this._transform(subSource, subValue, realTargetType, undefined, subValue instanceof Map, level + 1, promises);
                     if (newValue instanceof Set) {
                         newValue.add(value);
                     }
@@ -113,7 +124,7 @@ class TransformOperationExecutor {
         }
         else if ((0, utils_1.isPromise)(value) && !isMap) {
             return new Promise((resolve, reject) => {
-                value.then((data) => resolve(this.transform(undefined, data, targetType, undefined, undefined, level + 1)), reject);
+                value.then((data) => resolve(this._transform(undefined, data, targetType, undefined, undefined, level + 1, promises)), reject);
             });
         }
         else if (!isMap && value !== null && typeof value === 'object' && typeof value.then === 'function') {
@@ -294,11 +305,11 @@ class TransformOperationExecutor {
                         // Get original value
                         finalValue = value[transformKey];
                         // Apply custom transformation
-                        finalValue = this.applyCustomTransformations(finalValue, targetType, transformKey, value, this.transformationType);
+                        finalValue = this.applyCustomTransformations(finalValue, targetType, transformKey, value, this.transformationType, promises);
                         // If nothing change, it means no custom transformation was applied, so use the subValue.
                         finalValue = value[transformKey] === finalValue ? subValue : finalValue;
                         // Apply the default transformation
-                        finalValue = this.transform(subSource, finalValue, type, arrayType, isSubValueMap, level + 1);
+                        finalValue = this._transform(subSource, finalValue, type, arrayType, isSubValueMap, level + 1, promises);
                     }
                     else {
                         if (subValue === undefined && this.options.exposeDefaultValues) {
@@ -306,8 +317,8 @@ class TransformOperationExecutor {
                             finalValue = newValue[newValueKey];
                         }
                         else {
-                            finalValue = this.transform(subSource, subValue, type, arrayType, isSubValueMap, level + 1);
-                            finalValue = this.applyCustomTransformations(finalValue, targetType, transformKey, value, this.transformationType);
+                            finalValue = this._transform(subSource, subValue, type, arrayType, isSubValueMap, level + 1, promises);
+                            finalValue = this.applyCustomTransformations(finalValue, targetType, transformKey, value, this.transformationType, promises);
                         }
                     }
                     if (finalValue !== undefined || this.options.exposeUnsetFields) {
@@ -321,7 +332,7 @@ class TransformOperationExecutor {
                 }
                 else if (this.transformationType === enums_1.TransformationType.CLASS_TO_CLASS) {
                     let finalValue = subValue;
-                    finalValue = this.applyCustomTransformations(finalValue, targetType, key, value, this.transformationType);
+                    finalValue = this.applyCustomTransformations(finalValue, targetType, key, value, this.transformationType, promises);
                     if (finalValue !== undefined || this.options.exposeUnsetFields) {
                         if (newValue instanceof Map) {
                             newValue.set(newValueKey, finalValue);
@@ -341,7 +352,7 @@ class TransformOperationExecutor {
             return value;
         }
     }
-    applyCustomTransformations(value, target, key, obj, transformationType) {
+    applyCustomTransformations(value, target, key, obj, transformationType, promises) {
         let metadatas = storage_1.defaultMetadataStorage.findTransformMetadatas(target, key, this.transformationType);
         // apply versioning options
         if (this.options.version !== undefined) {
@@ -373,6 +384,8 @@ class TransformOperationExecutor {
                 options: this.options,
                 data: this.options.data,
             });
+            if ((0, utils_1.isPromise)(value))
+                promises.push(value);
         });
         return value;
     }

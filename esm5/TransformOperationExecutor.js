@@ -33,6 +33,18 @@ var TransformOperationExecutor = /** @class */ (function () {
     // Public Methods
     // -------------------------------------------------------------------------
     TransformOperationExecutor.prototype.transform = function (source, value, targetType, arrayType, isMap, level) {
+        if (level === void 0) { level = 0; }
+        var promises = [];
+        var result = this._transform(source, value, targetType, arrayType, isMap, level, promises);
+        if (promises)
+            return new Promise(function (resolve, reject) {
+                Promise.all(promises)
+                    .then(function () { return resolve(result); })
+                    .catch(reject);
+            });
+        return result;
+    };
+    TransformOperationExecutor.prototype._transform = function (source, value, targetType, arrayType, isMap, level, promises) {
         var _this = this;
         if (level === void 0) { level = 0; }
         if (Array.isArray(value) || value instanceof Set) {
@@ -74,7 +86,7 @@ var TransformOperationExecutor = /** @class */ (function () {
                     else {
                         realTargetType = targetType;
                     }
-                    var value_1 = _this.transform(subSource, subValue, realTargetType, undefined, subValue instanceof Map, level + 1);
+                    var value_1 = _this._transform(subSource, subValue, realTargetType, undefined, subValue instanceof Map, level + 1, promises);
                     if (newValue_1 instanceof Set) {
                         newValue_1.add(value_1);
                     }
@@ -123,7 +135,9 @@ var TransformOperationExecutor = /** @class */ (function () {
         }
         else if (isPromise(value) && !isMap) {
             return new Promise(function (resolve, reject) {
-                value.then(function (data) { return resolve(_this.transform(undefined, data, targetType, undefined, undefined, level + 1)); }, reject);
+                value.then(function (data) {
+                    return resolve(_this._transform(undefined, data, targetType, undefined, undefined, level + 1, promises));
+                }, reject);
             });
         }
         else if (!isMap && value !== null && typeof value === 'object' && typeof value.then === 'function') {
@@ -302,11 +316,11 @@ var TransformOperationExecutor = /** @class */ (function () {
                         // Get original value
                         finalValue = value[transformKey];
                         // Apply custom transformation
-                        finalValue = this_1.applyCustomTransformations(finalValue, targetType, transformKey, value, this_1.transformationType);
+                        finalValue = this_1.applyCustomTransformations(finalValue, targetType, transformKey, value, this_1.transformationType, promises);
                         // If nothing change, it means no custom transformation was applied, so use the subValue.
                         finalValue = value[transformKey] === finalValue ? subValue : finalValue;
                         // Apply the default transformation
-                        finalValue = this_1.transform(subSource, finalValue, type, arrayType_1, isSubValueMap, level + 1);
+                        finalValue = this_1._transform(subSource, finalValue, type, arrayType_1, isSubValueMap, level + 1, promises);
                     }
                     else {
                         if (subValue === undefined && this_1.options.exposeDefaultValues) {
@@ -314,8 +328,8 @@ var TransformOperationExecutor = /** @class */ (function () {
                             finalValue = newValue[newValueKey];
                         }
                         else {
-                            finalValue = this_1.transform(subSource, subValue, type, arrayType_1, isSubValueMap, level + 1);
-                            finalValue = this_1.applyCustomTransformations(finalValue, targetType, transformKey, value, this_1.transformationType);
+                            finalValue = this_1._transform(subSource, subValue, type, arrayType_1, isSubValueMap, level + 1, promises);
+                            finalValue = this_1.applyCustomTransformations(finalValue, targetType, transformKey, value, this_1.transformationType, promises);
                         }
                     }
                     if (finalValue !== undefined || this_1.options.exposeUnsetFields) {
@@ -329,7 +343,7 @@ var TransformOperationExecutor = /** @class */ (function () {
                 }
                 else if (this_1.transformationType === TransformationType.CLASS_TO_CLASS) {
                     var finalValue = subValue;
-                    finalValue = this_1.applyCustomTransformations(finalValue, targetType, key, value, this_1.transformationType);
+                    finalValue = this_1.applyCustomTransformations(finalValue, targetType, key, value, this_1.transformationType, promises);
                     if (finalValue !== undefined || this_1.options.exposeUnsetFields) {
                         if (newValue instanceof Map) {
                             newValue.set(newValueKey, finalValue);
@@ -355,7 +369,7 @@ var TransformOperationExecutor = /** @class */ (function () {
             return value;
         }
     };
-    TransformOperationExecutor.prototype.applyCustomTransformations = function (value, target, key, obj, transformationType) {
+    TransformOperationExecutor.prototype.applyCustomTransformations = function (value, target, key, obj, transformationType, promises) {
         var _this = this;
         var metadatas = defaultMetadataStorage.findTransformMetadatas(target, key, this.transformationType);
         // apply versioning options
@@ -388,6 +402,8 @@ var TransformOperationExecutor = /** @class */ (function () {
                 options: _this.options,
                 data: _this.options.data,
             });
+            if (isPromise(value))
+                promises.push(value);
         });
         return value;
     };
