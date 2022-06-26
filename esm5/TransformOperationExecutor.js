@@ -36,7 +36,7 @@ var TransformOperationExecutor = /** @class */ (function () {
         if (level === void 0) { level = 0; }
         var promises = [];
         var result = this._transform(source, value, targetType, arrayType, isMap, level, promises);
-        if (promises)
+        if (promises.length)
             return new Promise(function (resolve, reject) {
                 Promise.all(promises)
                     .then(function () { return resolve(result); })

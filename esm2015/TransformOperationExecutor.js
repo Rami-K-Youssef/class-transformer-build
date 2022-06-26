@@ -26,7 +26,7 @@ export class TransformOperationExecutor {
     transform(source, value, targetType, arrayType, isMap, level = 0) {
         const promises = [];
         const result = this._transform(source, value, targetType, arrayType, isMap, level, promises);
-        if (promises)
+        if (promises.length)
             return new Promise((resolve, reject) => {
                 Promise.all(promises)
                     .then(() => resolve(result))
